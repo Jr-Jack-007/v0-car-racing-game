@@ -7,8 +7,8 @@ const _geist = Geist({ subsets: ["latin"] });
 const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
+  title: 'Turbo Racer 3D',
+  description: 'A high-octane 3D racing game - dodge traffic, use nitro boost, and set high scores!',
   generator: 'v0.app',
   icons: {
     icon: [
