@@ -1,8 +1,8 @@
 "use client"
 
+// 3D Racing Game - Turbo Racer
 import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { Canvas, useFrame, useThree } from "@react-three/fiber"
-import { Sky, Environment, Text } from "@react-three/drei"
 import * as THREE from "three"
 
 type GameState = "menu" | "countdown" | "playing" | "gameover"
@@ -26,6 +26,16 @@ interface GameData {
 
 // Colors for traffic cars
 const CAR_COLORS = ["#ff4444", "#44ff44", "#4444ff", "#ffff44", "#ff44ff", "#44ffff", "#ff8800", "#8800ff"]
+
+// Custom Sky Component (replacing drei)
+function CustomSky() {
+  return (
+    <mesh>
+      <sphereGeometry args={[500, 32, 32]} />
+      <meshBasicMaterial color="#87CEEB" side={THREE.BackSide} />
+    </mesh>
+  )
+}
 
 // Player Car Component
 function PlayerCar({ position, shake }: { position: [number, number, number]; shake: number }) {
@@ -354,38 +364,6 @@ function Ground() {
   )
 }
 
-// Exhaust particles
-function ExhaustParticles({ playerX, speed }: { playerX: number; speed: number }) {
-  const particlesRef = useRef<THREE.Points>(null)
-  const positionsRef = useRef<Float32Array>(new Float32Array(100 * 3))
-
-  useFrame(() => {
-    if (particlesRef.current && speed > 50) {
-      const positions = positionsRef.current
-      for (let i = 0; i < 100; i++) {
-        positions[i * 3] = playerX + (Math.random() - 0.5) * 0.5
-        positions[i * 3 + 1] = 0.3 + Math.random() * 0.5
-        positions[i * 3 + 2] = -5 - Math.random() * 3
-      }
-      particlesRef.current.geometry.attributes.position.needsUpdate = true
-    }
-  })
-
-  return (
-    <points ref={particlesRef}>
-      <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          count={100}
-          array={positionsRef.current}
-          itemSize={3}
-        />
-      </bufferGeometry>
-      <pointsMaterial size={0.1} color="#888888" transparent opacity={0.5} />
-    </points>
-  )
-}
-
 // Camera controller
 function CameraController({ playerX }: { playerX: number }) {
   const { camera } = useThree()
@@ -432,16 +410,16 @@ function GameScene({
   useFrame((_, delta) => {
     // Handle player movement
     const moveSpeed = 8
-    if (keys.current.has("ArrowLeft") || keys.current.has("a")) {
+    if (keys.current.has("arrowleft") || keys.current.has("a")) {
       setPlayerX((x) => Math.max(-7, x - moveSpeed * delta))
     }
-    if (keys.current.has("ArrowRight") || keys.current.has("d")) {
+    if (keys.current.has("arrowright") || keys.current.has("d")) {
       setPlayerX((x) => Math.min(7, x + moveSpeed * delta))
     }
 
     // Nitro boost
     let currentSpeed = gameData.speed
-    if ((keys.current.has(" ") || keys.current.has("Shift")) && gameData.nitro > 0) {
+    if ((keys.current.has(" ") || keys.current.has("shift")) && gameData.nitro > 0) {
       currentSpeed *= 1.5
       setGameData((prev) => ({ ...prev, nitro: Math.max(0, prev.nitro - delta * 20) }))
     } else {
@@ -514,10 +492,10 @@ function GameScene({
   return (
     <>
       <CameraController playerX={playerX} />
-      <ambientLight intensity={0.5} />
-      <directionalLight position={[50, 50, 25]} intensity={1} castShadow shadow-mapSize={1024} />
-      <Sky sunPosition={[100, 20, 100]} />
-      <Environment preset="sunset" />
+      <ambientLight intensity={0.6} />
+      <directionalLight position={[50, 50, 25]} intensity={1.2} castShadow shadow-mapSize={1024} />
+      <hemisphereLight args={["#87CEEB", "#3d5c3d", 0.5]} />
+      <CustomSky />
       <fog attach="fog" args={["#87ceeb", 50, 300]} />
 
       <Ground />
@@ -537,8 +515,6 @@ function GameScene({
       {trafficCars.map((car) => (
         <TrafficCarMesh key={car.id} car={car} roadOffset={roadOffset} />
       ))}
-
-      <ExhaustParticles playerX={playerX} speed={gameData.speed} />
     </>
   )
 }
@@ -852,8 +828,7 @@ export default function RacingGame() {
           <>
             <ambientLight intensity={0.5} />
             <directionalLight position={[50, 50, 25]} intensity={1} />
-            <Sky sunPosition={[100, 20, 100]} />
-            <Environment preset="sunset" />
+            <CustomSky />
           </>
         )}
       </Canvas>
