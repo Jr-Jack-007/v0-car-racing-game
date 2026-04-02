@@ -9,10 +9,9 @@
     "lint": "eslint ."
   },
   "dependencies": {
-    "@react-three/drei": "^9.117.0",
-    "@react-three/fiber": "^8.17.0",
     "three": "^0.170.0",
-    "@types/three": "^0.170.0",
+    "@react-three/fiber": "^8.17.0",
+    "@react-three/drei": "^9.117.0",
     "@hookform/resolvers": "^3.9.1",
     "@vercel/analytics": "1.6.1",
     "@radix-ui/react-accordion": "1.2.12",
@@ -64,6 +63,7 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@types/three": "^0.170.0",
     "@tailwindcss/postcss": "^4.2.0",
     "@types/node": "^22",
     "@types/react": "^19",
