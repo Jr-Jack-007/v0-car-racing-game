@@ -1,8 +1,8 @@
 "use client"
 
-// 3D Racing Game - Turbo Racer
 import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { Canvas, useFrame, useThree } from "@react-three/fiber"
+import { Sky, Environment } from "@react-three/drei"
 import * as THREE from "three"
 
 type GameState = "menu" | "countdown" | "playing" | "gameover"
@@ -13,6 +13,7 @@ interface TrafficCar {
   lane: number
   speed: number
   color: string
+  type: "sports" | "suv" | "sedan" | "truck"
 }
 
 interface GameData {
@@ -24,21 +25,162 @@ interface GameData {
   nitro: number
 }
 
-// Colors for traffic cars
-const CAR_COLORS = ["#ff4444", "#44ff44", "#4444ff", "#ffff44", "#ff44ff", "#44ffff", "#ff8800", "#8800ff"]
+// Realistic car colors
+const CAR_COLORS = [
+  "#FFD700", // Gold/Yellow
+  "#1E90FF", // Dodger Blue
+  "#FF4500", // Orange Red
+  "#32CD32", // Lime Green
+  "#FF1493", // Deep Pink
+  "#00CED1", // Dark Turquoise
+  "#FF6347", // Tomato
+  "#9400D3", // Dark Violet
+]
 
-// Custom Sky Component (replacing drei)
-function CustomSky() {
+// Sports Car Component - realistic low-poly sports car
+function SportsCar({ color, isPlayer = false }: { color: string; isPlayer?: boolean }) {
   return (
-    <mesh>
-      <sphereGeometry args={[500, 32, 32]} />
-      <meshBasicMaterial color="#87CEEB" side={THREE.BackSide} />
-    </mesh>
+    <group>
+      {/* Main body - sleek sports car shape */}
+      <mesh position={[0, 0.35, 0]} castShadow>
+        <boxGeometry args={[1.9, 0.4, 4.2]} />
+        <meshStandardMaterial color={color} metalness={0.9} roughness={0.15} />
+      </mesh>
+      
+      {/* Front hood - sloped */}
+      <mesh position={[0, 0.45, 1.5]} rotation={[-0.15, 0, 0]} castShadow>
+        <boxGeometry args={[1.85, 0.15, 1.2]} />
+        <meshStandardMaterial color={color} metalness={0.9} roughness={0.15} />
+      </mesh>
+      
+      {/* Cabin/cockpit */}
+      <mesh position={[0, 0.65, -0.3]} castShadow>
+        <boxGeometry args={[1.6, 0.35, 1.8]} />
+        <meshStandardMaterial color="#1a1a1a" metalness={0.5} roughness={0.3} />
+      </mesh>
+      
+      {/* Front windshield */}
+      <mesh position={[0, 0.72, 0.65]} rotation={[0.5, 0, 0]}>
+        <boxGeometry args={[1.5, 0.5, 0.05]} />
+        <meshStandardMaterial color="#88ccff" metalness={0.95} roughness={0.05} transparent opacity={0.6} />
+      </mesh>
+      
+      {/* Rear windshield */}
+      <mesh position={[0, 0.72, -1.1]} rotation={[-0.4, 0, 0]}>
+        <boxGeometry args={[1.5, 0.4, 0.05]} />
+        <meshStandardMaterial color="#88ccff" metalness={0.95} roughness={0.05} transparent opacity={0.6} />
+      </mesh>
+      
+      {/* Side windows */}
+      <mesh position={[0.82, 0.65, -0.3]}>
+        <boxGeometry args={[0.05, 0.3, 1.4]} />
+        <meshStandardMaterial color="#88ccff" metalness={0.95} roughness={0.05} transparent opacity={0.5} />
+      </mesh>
+      <mesh position={[-0.82, 0.65, -0.3]}>
+        <boxGeometry args={[0.05, 0.3, 1.4]} />
+        <meshStandardMaterial color="#88ccff" metalness={0.95} roughness={0.05} transparent opacity={0.5} />
+      </mesh>
+      
+      {/* Front bumper */}
+      <mesh position={[0, 0.2, 2.1]} castShadow>
+        <boxGeometry args={[1.9, 0.25, 0.15]} />
+        <meshStandardMaterial color="#222222" metalness={0.3} roughness={0.5} />
+      </mesh>
+      
+      {/* Front grille */}
+      <mesh position={[0, 0.32, 2.12]}>
+        <boxGeometry args={[1.2, 0.15, 0.05]} />
+        <meshStandardMaterial color="#111111" />
+      </mesh>
+      
+      {/* Rear bumper */}
+      <mesh position={[0, 0.2, -2.1]} castShadow>
+        <boxGeometry args={[1.9, 0.25, 0.15]} />
+        <meshStandardMaterial color="#222222" metalness={0.3} roughness={0.5} />
+      </mesh>
+      
+      {/* Rear diffuser */}
+      <mesh position={[0, 0.12, -2.15]}>
+        <boxGeometry args={[1.4, 0.1, 0.1]} />
+        <meshStandardMaterial color="#111111" />
+      </mesh>
+
+      {/* Spoiler */}
+      <mesh position={[0, 0.95, -1.7]} castShadow>
+        <boxGeometry args={[1.7, 0.06, 0.35]} />
+        <meshStandardMaterial color={color} metalness={0.9} roughness={0.15} />
+      </mesh>
+      {/* Spoiler supports */}
+      <mesh position={[-0.55, 0.82, -1.7]} castShadow>
+        <boxGeometry args={[0.08, 0.25, 0.08]} />
+        <meshStandardMaterial color="#333333" metalness={0.6} />
+      </mesh>
+      <mesh position={[0.55, 0.82, -1.7]} castShadow>
+        <boxGeometry args={[0.08, 0.25, 0.08]} />
+        <meshStandardMaterial color="#333333" metalness={0.6} />
+      </mesh>
+      
+      {/* Wheels with rims */}
+      {[[-0.95, 1.3], [0.95, 1.3], [-0.95, -1.3], [0.95, -1.3]].map(([x, z], i) => (
+        <group key={i} position={[x, 0.28, z]}>
+          {/* Tire */}
+          <mesh rotation={[0, 0, Math.PI / 2]} castShadow>
+            <cylinderGeometry args={[0.32, 0.32, 0.25, 24]} />
+            <meshStandardMaterial color="#1a1a1a" roughness={0.9} />
+          </mesh>
+          {/* Rim */}
+          <mesh rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.2, 0.2, 0.26, 8]} />
+            <meshStandardMaterial color="#c0c0c0" metalness={0.95} roughness={0.1} />
+          </mesh>
+        </group>
+      ))}
+      
+      {/* Headlights */}
+      <mesh position={[-0.65, 0.38, 2.1]}>
+        <boxGeometry args={[0.35, 0.12, 0.05]} />
+        <meshStandardMaterial color="#ffffee" emissive={isPlayer ? "#ffffaa" : "#000000"} emissiveIntensity={isPlayer ? 2 : 0} />
+      </mesh>
+      <mesh position={[0.65, 0.38, 2.1]}>
+        <boxGeometry args={[0.35, 0.12, 0.05]} />
+        <meshStandardMaterial color="#ffffee" emissive={isPlayer ? "#ffffaa" : "#000000"} emissiveIntensity={isPlayer ? 2 : 0} />
+      </mesh>
+      
+      {/* Taillights */}
+      <mesh position={[-0.65, 0.38, -2.1]}>
+        <boxGeometry args={[0.4, 0.1, 0.05]} />
+        <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={0.8} />
+      </mesh>
+      <mesh position={[0.65, 0.38, -2.1]}>
+        <boxGeometry args={[0.4, 0.1, 0.05]} />
+        <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={0.8} />
+      </mesh>
+      
+      {/* Exhaust pipes */}
+      <mesh position={[-0.4, 0.15, -2.15]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.06, 0.06, 0.1, 12]} />
+        <meshStandardMaterial color="#444444" metalness={0.9} />
+      </mesh>
+      <mesh position={[0.4, 0.15, -2.15]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.06, 0.06, 0.1, 12]} />
+        <meshStandardMaterial color="#444444" metalness={0.9} />
+      </mesh>
+      
+      {/* Side mirrors */}
+      <mesh position={[-0.95, 0.6, 0.5]}>
+        <boxGeometry args={[0.15, 0.08, 0.12]} />
+        <meshStandardMaterial color={color} metalness={0.9} roughness={0.15} />
+      </mesh>
+      <mesh position={[0.95, 0.6, 0.5]}>
+        <boxGeometry args={[0.15, 0.08, 0.12]} />
+        <meshStandardMaterial color={color} metalness={0.9} roughness={0.15} />
+      </mesh>
+    </group>
   )
 }
 
-// Player Car Component
-function PlayerCar({ position, shake }: { position: [number, number, number]; shake: number }) {
+// Player Car Component with screen shake
+function PlayerCar({ position, shake, nitroActive }: { position: [number, number, number]; shake: number; nitroActive: boolean }) {
   const groupRef = useRef<THREE.Group>(null)
 
   useFrame(() => {
@@ -51,75 +193,21 @@ function PlayerCar({ position, shake }: { position: [number, number, number]; sh
 
   return (
     <group ref={groupRef}>
-      {/* Car body */}
-      <mesh position={[0, 0.4, 0]} castShadow>
-        <boxGeometry args={[1.8, 0.5, 4]} />
-        <meshStandardMaterial color="#ff3300" metalness={0.8} roughness={0.2} />
-      </mesh>
-      {/* Cabin */}
-      <mesh position={[0, 0.8, -0.3]} castShadow>
-        <boxGeometry args={[1.4, 0.4, 2]} />
-        <meshStandardMaterial color="#222222" metalness={0.5} roughness={0.3} />
-      </mesh>
-      {/* Windshield */}
-      <mesh position={[0, 0.85, 0.8]} rotation={[0.3, 0, 0]}>
-        <boxGeometry args={[1.3, 0.35, 0.1]} />
-        <meshStandardMaterial color="#88ccff" metalness={0.9} roughness={0.1} transparent opacity={0.7} />
-      </mesh>
-      {/* Rear window */}
-      <mesh position={[0, 0.85, -1.2]} rotation={[-0.3, 0, 0]}>
-        <boxGeometry args={[1.3, 0.35, 0.1]} />
-        <meshStandardMaterial color="#88ccff" metalness={0.9} roughness={0.1} transparent opacity={0.7} />
-      </mesh>
-      {/* Front wheels */}
-      <mesh position={[-0.9, 0.2, 1.2]} rotation={[0, 0, Math.PI / 2]} castShadow>
-        <cylinderGeometry args={[0.3, 0.3, 0.2, 16]} />
-        <meshStandardMaterial color="#111111" />
-      </mesh>
-      <mesh position={[0.9, 0.2, 1.2]} rotation={[0, 0, Math.PI / 2]} castShadow>
-        <cylinderGeometry args={[0.3, 0.3, 0.2, 16]} />
-        <meshStandardMaterial color="#111111" />
-      </mesh>
-      {/* Rear wheels */}
-      <mesh position={[-0.9, 0.2, -1.2]} rotation={[0, 0, Math.PI / 2]} castShadow>
-        <cylinderGeometry args={[0.3, 0.3, 0.2, 16]} />
-        <meshStandardMaterial color="#111111" />
-      </mesh>
-      <mesh position={[0.9, 0.2, -1.2]} rotation={[0, 0, Math.PI / 2]} castShadow>
-        <cylinderGeometry args={[0.3, 0.3, 0.2, 16]} />
-        <meshStandardMaterial color="#111111" />
-      </mesh>
-      {/* Headlights */}
-      <mesh position={[-0.6, 0.4, 2]}>
-        <boxGeometry args={[0.3, 0.15, 0.05]} />
-        <meshStandardMaterial color="#ffffaa" emissive="#ffffaa" emissiveIntensity={2} />
-      </mesh>
-      <mesh position={[0.6, 0.4, 2]}>
-        <boxGeometry args={[0.3, 0.15, 0.05]} />
-        <meshStandardMaterial color="#ffffaa" emissive="#ffffaa" emissiveIntensity={2} />
-      </mesh>
-      {/* Taillights */}
-      <mesh position={[-0.6, 0.4, -2]}>
-        <boxGeometry args={[0.3, 0.15, 0.05]} />
-        <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={1} />
-      </mesh>
-      <mesh position={[0.6, 0.4, -2]}>
-        <boxGeometry args={[0.3, 0.15, 0.05]} />
-        <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={1} />
-      </mesh>
-      {/* Spoiler */}
-      <mesh position={[0, 0.9, -1.8]} castShadow>
-        <boxGeometry args={[1.6, 0.05, 0.4]} />
-        <meshStandardMaterial color="#ff3300" metalness={0.8} roughness={0.2} />
-      </mesh>
-      <mesh position={[-0.6, 0.75, -1.8]} castShadow>
-        <boxGeometry args={[0.1, 0.3, 0.1]} />
-        <meshStandardMaterial color="#333333" />
-      </mesh>
-      <mesh position={[0.6, 0.75, -1.8]} castShadow>
-        <boxGeometry args={[0.1, 0.3, 0.1]} />
-        <meshStandardMaterial color="#333333" />
-      </mesh>
+      <SportsCar color="#ff3300" isPlayer />
+      {/* Nitro flames */}
+      {nitroActive && (
+        <>
+          <mesh position={[-0.4, 0.15, -2.4]}>
+            <coneGeometry args={[0.08, 0.6, 8]} />
+            <meshBasicMaterial color="#ff6600" transparent opacity={0.8} />
+          </mesh>
+          <mesh position={[0.4, 0.15, -2.4]}>
+            <coneGeometry args={[0.08, 0.6, 8]} />
+            <meshBasicMaterial color="#ff6600" transparent opacity={0.8} />
+          </mesh>
+          <pointLight position={[0, 0.2, -2.5]} color="#ff4400" intensity={2} distance={5} />
+        </>
+      )}
     </group>
   )
 }
@@ -136,93 +224,72 @@ function TrafficCarMesh({ car, roadOffset }: { car: TrafficCar; roadOffset: numb
 
   return (
     <group ref={groupRef}>
-      {/* Car body */}
-      <mesh position={[0, 0.35, 0]} castShadow>
-        <boxGeometry args={[1.6, 0.45, 3.5]} />
-        <meshStandardMaterial color={car.color} metalness={0.6} roughness={0.3} />
-      </mesh>
-      {/* Cabin */}
-      <mesh position={[0, 0.7, -0.2]} castShadow>
-        <boxGeometry args={[1.3, 0.35, 1.8]} />
-        <meshStandardMaterial color="#333333" metalness={0.5} roughness={0.3} />
-      </mesh>
-      {/* Wheels */}
-      <mesh position={[-0.8, 0.2, 1]} rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.25, 0.25, 0.15, 16]} />
-        <meshStandardMaterial color="#111111" />
-      </mesh>
-      <mesh position={[0.8, 0.2, 1]} rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.25, 0.25, 0.15, 16]} />
-        <meshStandardMaterial color="#111111" />
-      </mesh>
-      <mesh position={[-0.8, 0.2, -1]} rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.25, 0.25, 0.15, 16]} />
-        <meshStandardMaterial color="#111111" />
-      </mesh>
-      <mesh position={[0.8, 0.2, -1]} rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.25, 0.25, 0.15, 16]} />
-        <meshStandardMaterial color="#111111" />
-      </mesh>
+      <SportsCar color={car.color} />
     </group>
   )
 }
 
-// Road segment component
-function RoadSegment({ zPosition, roadOffset }: { zPosition: number; roadOffset: number }) {
-  const meshRef = useRef<THREE.Mesh>(null)
-  const adjustedZ = ((zPosition - roadOffset) % 200 + 200) % 200 - 100
-
+// Highway Road with realistic textures
+function Highway({ roadOffset }: { roadOffset: number }) {
+  const roadRef = useRef<THREE.Group>(null)
+  
   useFrame(() => {
-    if (meshRef.current) {
-      meshRef.current.position.z = adjustedZ
+    if (roadRef.current) {
+      roadRef.current.position.z = -(roadOffset % 100)
     }
   })
-
-  return (
-    <group>
-      {/* Asphalt */}
-      <mesh ref={meshRef} position={[0, 0, adjustedZ]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[20, 50]} />
-        <meshStandardMaterial color="#333333" />
-      </mesh>
-    </group>
-  )
+  
+  const segments = useMemo(() => {
+    const segs = []
+    for (let i = -2; i < 8; i++) {
+      segs.push(
+        <mesh key={`road-${i}`} position={[0, 0.01, i * 50]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+          <planeGeometry args={[24, 50]} />
+          <meshStandardMaterial color="#2a2a2a" roughness={0.8} />
+        </mesh>
+      )
+    }
+    return segs
+  }, [])
+  
+  return <group ref={roadRef}>{segments}</group>
 }
 
-// Lane markings
+// Lane markings - white dashed lines
 function LaneMarkings({ roadOffset }: { roadOffset: number }) {
   const markingsRef = useRef<THREE.Group>(null)
 
   useFrame(() => {
     if (markingsRef.current) {
-      markingsRef.current.position.z = -(roadOffset % 10)
+      markingsRef.current.position.z = -(roadOffset % 12)
     }
   })
 
   const markings = useMemo(() => {
     const marks = []
-    for (let i = -10; i < 15; i++) {
-      // Center yellow line
+    for (let i = -5; i < 30; i++) {
+      // Center double yellow line
       marks.push(
-        <mesh key={`center-${i}`} position={[0, 0.01, i * 10]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[0.2, 4]} />
-          <meshStandardMaterial color="#ffcc00" emissive="#ffcc00" emissiveIntensity={0.3} />
+        <mesh key={`yellow-left-${i}`} position={[-0.15, 0.02, i * 12]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[0.12, 4]} />
+          <meshStandardMaterial color="#ffd700" emissive="#ffd700" emissiveIntensity={0.2} />
         </mesh>
       )
-      // Left lane markings
       marks.push(
-        <mesh key={`left-${i}`} position={[-3.5, 0.01, i * 10]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[0.15, 3]} />
-          <meshStandardMaterial color="#ffffff" />
+        <mesh key={`yellow-right-${i}`} position={[0.15, 0.02, i * 12]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[0.12, 4]} />
+          <meshStandardMaterial color="#ffd700" emissive="#ffd700" emissiveIntensity={0.2} />
         </mesh>
       )
-      // Right lane markings
-      marks.push(
-        <mesh key={`right-${i}`} position={[3.5, 0.01, i * 10]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[0.15, 3]} />
-          <meshStandardMaterial color="#ffffff" />
-        </mesh>
-      )
+      // Lane dividers
+      for (const x of [-4, 4, -8, 8]) {
+        marks.push(
+          <mesh key={`white-${x}-${i}`} position={[x, 0.02, i * 12]} rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[0.15, 3]} />
+            <meshStandardMaterial color="#ffffff" />
+          </mesh>
+        )
+      }
     }
     return marks
   }, [])
@@ -230,149 +297,181 @@ function LaneMarkings({ roadOffset }: { roadOffset: number }) {
   return <group ref={markingsRef}>{markings}</group>
 }
 
-// Road barriers
-function RoadBarriers({ roadOffset }: { roadOffset: number }) {
-  const barriersRef = useRef<THREE.Group>(null)
+// Metal guardrails
+function Guardrails({ roadOffset }: { roadOffset: number }) {
+  const railsRef = useRef<THREE.Group>(null)
 
   useFrame(() => {
-    if (barriersRef.current) {
-      barriersRef.current.position.z = -(roadOffset % 20)
+    if (railsRef.current) {
+      railsRef.current.position.z = -(roadOffset % 40)
     }
   })
 
-  const barriers = useMemo(() => {
-    const bars = []
-    for (let i = -5; i < 10; i++) {
-      // Left barrier
-      bars.push(
-        <mesh key={`left-barrier-${i}`} position={[-9, 0.3, i * 20]} castShadow>
-          <boxGeometry args={[0.5, 0.6, 15]} />
-          <meshStandardMaterial color="#cc0000" />
-        </mesh>
-      )
-      // Left barrier white stripe
-      bars.push(
-        <mesh key={`left-stripe-${i}`} position={[-9, 0.3, i * 20 + 5]}>
-          <boxGeometry args={[0.52, 0.2, 5]} />
-          <meshStandardMaterial color="#ffffff" />
-        </mesh>
-      )
-      // Right barrier
-      bars.push(
-        <mesh key={`right-barrier-${i}`} position={[9, 0.3, i * 20]} castShadow>
-          <boxGeometry args={[0.5, 0.6, 15]} />
-          <meshStandardMaterial color="#cc0000" />
-        </mesh>
-      )
-      // Right barrier white stripe
-      bars.push(
-        <mesh key={`right-stripe-${i}`} position={[9, 0.3, i * 20 + 5]}>
-          <boxGeometry args={[0.52, 0.2, 5]} />
-          <meshStandardMaterial color="#ffffff" />
-        </mesh>
-      )
-    }
-    return bars
-  }, [])
-
-  return <group ref={barriersRef}>{barriers}</group>
-}
-
-// Trees and scenery
-function Scenery({ roadOffset }: { roadOffset: number }) {
-  const sceneryRef = useRef<THREE.Group>(null)
-
-  useFrame(() => {
-    if (sceneryRef.current) {
-      sceneryRef.current.position.z = -(roadOffset % 60)
-    }
-  })
-
-  const trees = useMemo(() => {
+  const rails = useMemo(() => {
     const items = []
-    for (let i = -3; i < 8; i++) {
-      const leftX = -15 - Math.random() * 10
-      const rightX = 15 + Math.random() * 10
-      // Left trees
+    for (let i = -2; i < 15; i++) {
+      // Left guardrail
       items.push(
-        <group key={`left-tree-${i}`} position={[leftX, 0, i * 30]}>
-          <mesh position={[0, 1.5, 0]} castShadow>
-            <cylinderGeometry args={[0.3, 0.4, 3, 8]} />
-            <meshStandardMaterial color="#4a3728" />
+        <group key={`left-rail-${i}`} position={[-11.5, 0, i * 40]}>
+          <mesh position={[0, 0.5, 0]} castShadow>
+            <boxGeometry args={[0.15, 0.6, 38]} />
+            <meshStandardMaterial color="#888888" metalness={0.8} roughness={0.3} />
           </mesh>
-          <mesh position={[0, 4, 0]} castShadow>
-            <coneGeometry args={[2, 4, 8]} />
-            <meshStandardMaterial color="#228833" />
-          </mesh>
+          {/* Posts */}
+          {[-15, -5, 5, 15].map((z, j) => (
+            <mesh key={`post-${j}`} position={[0, 0.3, z]} castShadow>
+              <boxGeometry args={[0.1, 0.6, 0.1]} />
+              <meshStandardMaterial color="#666666" metalness={0.7} />
+            </mesh>
+          ))}
         </group>
       )
-      // Right trees
+      // Right guardrail
       items.push(
-        <group key={`right-tree-${i}`} position={[rightX, 0, i * 30 + 15]}>
-          <mesh position={[0, 1.5, 0]} castShadow>
-            <cylinderGeometry args={[0.3, 0.4, 3, 8]} />
-            <meshStandardMaterial color="#4a3728" />
+        <group key={`right-rail-${i}`} position={[11.5, 0, i * 40]}>
+          <mesh position={[0, 0.5, 0]} castShadow>
+            <boxGeometry args={[0.15, 0.6, 38]} />
+            <meshStandardMaterial color="#888888" metalness={0.8} roughness={0.3} />
           </mesh>
-          <mesh position={[0, 4, 0]} castShadow>
-            <coneGeometry args={[2, 4, 8]} />
-            <meshStandardMaterial color="#228833" />
-          </mesh>
+          {[-15, -5, 5, 15].map((z, j) => (
+            <mesh key={`post-${j}`} position={[0, 0.3, z]} castShadow>
+              <boxGeometry args={[0.1, 0.6, 0.1]} />
+              <meshStandardMaterial color="#666666" metalness={0.7} />
+            </mesh>
+          ))}
         </group>
       )
     }
     return items
   }, [])
 
-  return <group ref={sceneryRef}>{trees}</group>
+  return <group ref={railsRef}>{rails}</group>
+}
+
+// Realistic trees
+function Trees({ roadOffset }: { roadOffset: number }) {
+  const treesRef = useRef<THREE.Group>(null)
+
+  useFrame(() => {
+    if (treesRef.current) {
+      treesRef.current.position.z = -(roadOffset % 80)
+    }
+  })
+
+  const trees = useMemo(() => {
+    const items = []
+    const random = (seed: number) => {
+      const x = Math.sin(seed * 12.9898 + 78.233) * 43758.5453
+      return x - Math.floor(x)
+    }
+    
+    for (let i = -2; i < 12; i++) {
+      for (let j = 0; j < 6; j++) {
+        const side = j < 3 ? -1 : 1
+        const offsetX = (random(i * 10 + j) * 15 + 15) * side
+        const offsetZ = random(i * 20 + j + 100) * 30
+        const scale = 0.8 + random(i * 30 + j) * 0.6
+        
+        items.push(
+          <group key={`tree-${i}-${j}`} position={[offsetX, 0, i * 80 + offsetZ]} scale={scale}>
+            {/* Trunk */}
+            <mesh position={[0, 2, 0]} castShadow>
+              <cylinderGeometry args={[0.3, 0.45, 4, 8]} />
+              <meshStandardMaterial color="#5d4037" roughness={0.9} />
+            </mesh>
+            {/* Foliage layers */}
+            <mesh position={[0, 5, 0]} castShadow>
+              <coneGeometry args={[2.5, 4, 8]} />
+              <meshStandardMaterial color="#2e7d32" roughness={0.8} />
+            </mesh>
+            <mesh position={[0, 6.5, 0]} castShadow>
+              <coneGeometry args={[2, 3, 8]} />
+              <meshStandardMaterial color="#388e3c" roughness={0.8} />
+            </mesh>
+            <mesh position={[0, 7.8, 0]} castShadow>
+              <coneGeometry args={[1.3, 2.5, 8]} />
+              <meshStandardMaterial color="#43a047" roughness={0.8} />
+            </mesh>
+          </group>
+        )
+      }
+    }
+    return items
+  }, [])
+
+  return <group ref={treesRef}>{trees}</group>
 }
 
 // Mountains in background
 function Mountains() {
   return (
-    <group position={[0, 0, 200]}>
-      <mesh position={[-80, 15, 0]}>
+    <group position={[0, -5, 400]}>
+      {/* Snow-capped mountains */}
+      <mesh position={[-120, 30, 0]}>
+        <coneGeometry args={[60, 80, 4]} />
+        <meshStandardMaterial color="#5d6d7e" />
+      </mesh>
+      <mesh position={[-120, 55, 0]}>
+        <coneGeometry args={[25, 25, 4]} />
+        <meshStandardMaterial color="#ecf0f1" />
+      </mesh>
+      
+      <mesh position={[0, 40, 0]}>
+        <coneGeometry args={[80, 100, 4]} />
+        <meshStandardMaterial color="#4a5568" />
+      </mesh>
+      <mesh position={[0, 70, 0]}>
+        <coneGeometry args={[35, 35, 4]} />
+        <meshStandardMaterial color="#e2e8f0" />
+      </mesh>
+      
+      <mesh position={[130, 25, 0]}>
+        <coneGeometry args={[55, 70, 4]} />
+        <meshStandardMaterial color="#6b7280" />
+      </mesh>
+      <mesh position={[130, 48, 0]}>
+        <coneGeometry args={[22, 22, 4]} />
+        <meshStandardMaterial color="#f1f5f9" />
+      </mesh>
+      
+      <mesh position={[-60, 18, 50]}>
         <coneGeometry args={[40, 50, 4]} />
-        <meshStandardMaterial color="#667788" />
+        <meshStandardMaterial color="#718096" />
       </mesh>
-      <mesh position={[0, 20, 0]}>
-        <coneGeometry args={[50, 60, 4]} />
-        <meshStandardMaterial color="#556677" />
-      </mesh>
-      <mesh position={[80, 12, 0]}>
-        <coneGeometry args={[35, 40, 4]} />
-        <meshStandardMaterial color="#778899" />
-      </mesh>
-      <mesh position={[-40, 10, 30]}>
-        <coneGeometry args={[30, 35, 4]} />
-        <meshStandardMaterial color="#6688aa" />
-      </mesh>
-      <mesh position={[50, 8, 30]}>
-        <coneGeometry args={[25, 30, 4]} />
-        <meshStandardMaterial color="#7799bb" />
+      
+      <mesh position={[70, 15, 50]}>
+        <coneGeometry args={[35, 45, 4]} />
+        <meshStandardMaterial color="#64748b" />
       </mesh>
     </group>
   )
 }
 
-// Ground plane
+// Ground/grass
 function Ground() {
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.1, 0]} receiveShadow>
-      <planeGeometry args={[500, 500]} />
-      <meshStandardMaterial color="#3d5c3d" />
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.05, 200]} receiveShadow>
+      <planeGeometry args={[600, 800]} />
+      <meshStandardMaterial color="#4a7c3f" />
     </mesh>
   )
 }
 
-// Camera controller
-function CameraController({ playerX }: { playerX: number }) {
+// Camera follow
+function CameraController({ playerX, speed }: { playerX: number; speed: number }) {
   const { camera } = useThree()
+  const targetY = useRef(5)
+  const targetZ = useRef(-12)
 
   useFrame(() => {
-    camera.position.x = THREE.MathUtils.lerp(camera.position.x, playerX * 0.3, 0.05)
-    camera.position.y = 5
-    camera.position.z = -10
-    camera.lookAt(playerX * 0.5, 1, 20)
+    // Dynamic camera based on speed
+    targetY.current = THREE.MathUtils.lerp(targetY.current, 4 + speed * 0.003, 0.02)
+    targetZ.current = THREE.MathUtils.lerp(targetZ.current, -10 - speed * 0.008, 0.02)
+    
+    camera.position.x = THREE.MathUtils.lerp(camera.position.x, playerX * 0.4, 0.08)
+    camera.position.y = THREE.MathUtils.lerp(camera.position.y, targetY.current, 0.05)
+    camera.position.z = THREE.MathUtils.lerp(camera.position.z, targetZ.current, 0.05)
+    camera.lookAt(playerX * 0.6, 1.5, 30)
   })
 
   return null
@@ -390,6 +489,8 @@ function GameScene({
   keys,
   shake,
   setShake,
+  nitroActive,
+  setNitroActive,
 }: {
   gameData: GameData
   setGameData: React.Dispatch<React.SetStateAction<GameData>>
@@ -401,6 +502,8 @@ function GameScene({
   keys: React.MutableRefObject<Set<string>>
   shake: number
   setShake: React.Dispatch<React.SetStateAction<number>>
+  nitroActive: boolean
+  setNitroActive: React.Dispatch<React.SetStateAction<boolean>>
 }) {
   const roadOffsetRef = useRef(0)
   const [roadOffset, setRoadOffset] = useState(0)
@@ -409,47 +512,53 @@ function GameScene({
 
   useFrame((_, delta) => {
     // Handle player movement
-    const moveSpeed = 8
+    const moveSpeed = 10 + gameData.speed * 0.01
     if (keys.current.has("arrowleft") || keys.current.has("a")) {
-      setPlayerX((x) => Math.max(-7, x - moveSpeed * delta))
+      setPlayerX((x) => Math.max(-9, x - moveSpeed * delta))
     }
     if (keys.current.has("arrowright") || keys.current.has("d")) {
-      setPlayerX((x) => Math.min(7, x + moveSpeed * delta))
+      setPlayerX((x) => Math.min(9, x + moveSpeed * delta))
     }
 
     // Nitro boost
     let currentSpeed = gameData.speed
-    if ((keys.current.has(" ") || keys.current.has("shift")) && gameData.nitro > 0) {
-      currentSpeed *= 1.5
-      setGameData((prev) => ({ ...prev, nitro: Math.max(0, prev.nitro - delta * 20) }))
+    const usingNitro = (keys.current.has(" ") || keys.current.has("shift")) && gameData.nitro > 0
+    setNitroActive(usingNitro)
+    
+    if (usingNitro) {
+      currentSpeed *= 1.6
+      setGameData((prev) => ({ ...prev, nitro: Math.max(0, prev.nitro - delta * 25) }))
     } else {
-      setGameData((prev) => ({ ...prev, nitro: Math.min(100, prev.nitro + delta * 5) }))
+      setGameData((prev) => ({ ...prev, nitro: Math.min(100, prev.nitro + delta * 8) }))
     }
 
-    // Update road offset (simulate forward movement)
+    // Update road offset
     roadOffsetRef.current += currentSpeed * delta * 0.5
     setRoadOffset(roadOffsetRef.current)
 
     // Update game data
     setGameData((prev) => ({
       ...prev,
-      distance: prev.distance + currentSpeed * delta * 0.1,
-      score: prev.score + Math.floor(currentSpeed * delta * 0.5),
+      distance: prev.distance + currentSpeed * delta * 0.01,
+      score: prev.score + Math.floor(currentSpeed * delta * 0.8),
       time: prev.time + delta,
-      speed: Math.min(300, prev.speed + delta * 2), // Speed gradually increases
+      speed: Math.min(320, prev.speed + delta * 1.5),
     }))
 
     // Spawn traffic cars
     lastSpawnRef.current += delta
-    if (lastSpawnRef.current > 1.5 - gameData.speed * 0.003) {
+    const spawnRate = Math.max(0.8, 2 - gameData.speed * 0.004)
+    if (lastSpawnRef.current > spawnRate) {
       lastSpawnRef.current = 0
-      const lane = Math.floor(Math.random() * 4) - 2
+      const lanes = [-8, -4, 4, 8]
+      const lane = lanes[Math.floor(Math.random() * lanes.length)]
       const newCar: TrafficCar = {
         id: carIdRef.current++,
-        position: new THREE.Vector3(lane * 3.5, 0, roadOffsetRef.current + 150),
-        lane,
-        speed: 30 + Math.random() * 20,
+        position: new THREE.Vector3(lane, 0, roadOffsetRef.current + 180),
+        lane: lanes.indexOf(lane),
+        speed: 40 + Math.random() * 30,
         color: CAR_COLORS[Math.floor(Math.random() * CAR_COLORS.length)],
+        type: "sports",
       }
       setTrafficCars((prev) => [...prev, newCar])
     }
@@ -461,21 +570,20 @@ function GameScene({
           ...car,
           position: new THREE.Vector3(car.position.x, car.position.y, car.position.z - car.speed * delta),
         }))
-        .filter((car) => car.position.z > roadOffsetRef.current - 50)
+        .filter((car) => car.position.z > roadOffsetRef.current - 30)
 
       // Collision detection
       for (const car of updated) {
         const relativeZ = car.position.z - roadOffsetRef.current
-        if (relativeZ > -5 && relativeZ < 5) {
-          if (Math.abs(car.position.x - playerX) < 1.8) {
-            // Collision!
-            setShake(10)
+        if (relativeZ > -4 && relativeZ < 4) {
+          if (Math.abs(car.position.x - playerX) < 2) {
+            setShake(15)
             setTimeout(() => {
               const best = Math.max(gameData.score, gameData.bestScore)
               localStorage.setItem("racingBestScore", best.toString())
               setGameData((prev) => ({ ...prev, bestScore: best }))
               setGameState("gameover")
-            }, 500)
+            }, 400)
           }
         }
       }
@@ -485,32 +593,41 @@ function GameScene({
 
     // Reduce shake
     if (shake > 0) {
-      setShake((s) => Math.max(0, s - delta * 20))
+      setShake((s) => Math.max(0, s - delta * 25))
     }
   })
 
   return (
     <>
-      <CameraController playerX={playerX} />
-      <ambientLight intensity={0.6} />
-      <directionalLight position={[50, 50, 25]} intensity={1.2} castShadow shadow-mapSize={1024} />
-      <hemisphereLight args={["#87CEEB", "#3d5c3d", 0.5]} />
-      <CustomSky />
-      <fog attach="fog" args={["#87ceeb", 50, 300]} />
+      <CameraController playerX={playerX} speed={gameData.speed} />
+      
+      {/* Lighting */}
+      <ambientLight intensity={0.5} />
+      <directionalLight 
+        position={[100, 100, 50]} 
+        intensity={1.5} 
+        castShadow 
+        shadow-mapSize={[2048, 2048]}
+        shadow-camera-far={500}
+        shadow-camera-left={-100}
+        shadow-camera-right={100}
+        shadow-camera-top={100}
+        shadow-camera-bottom={-100}
+      />
+      <hemisphereLight args={["#87ceeb", "#4a7c3f", 0.4]} />
+      
+      {/* Environment */}
+      <Sky sunPosition={[100, 50, 100]} turbidity={8} rayleigh={0.5} />
+      <fog attach="fog" args={["#c9daf8", 100, 500]} />
 
       <Ground />
       <Mountains />
-
-      {/* Road segments */}
-      {[-100, -50, 0, 50, 100].map((z) => (
-        <RoadSegment key={z} zPosition={z} roadOffset={roadOffset} />
-      ))}
-
+      <Highway roadOffset={roadOffset} />
       <LaneMarkings roadOffset={roadOffset} />
-      <RoadBarriers roadOffset={roadOffset} />
-      <Scenery roadOffset={roadOffset} />
+      <Guardrails roadOffset={roadOffset} />
+      <Trees roadOffset={roadOffset} />
 
-      <PlayerCar position={[playerX, 0, 0]} shake={shake} />
+      <PlayerCar position={[playerX, 0, 0]} shake={shake} nitroActive={nitroActive} />
 
       {trafficCars.map((car) => (
         <TrafficCarMesh key={car.id} car={car} roadOffset={roadOffset} />
@@ -522,100 +639,165 @@ function GameScene({
 // Countdown overlay
 function CountdownOverlay({ count }: { count: number }) {
   return (
-    <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10">
-      <div className="text-9xl font-bold text-white animate-pulse drop-shadow-[0_0_30px_rgba(255,100,0,0.8)]">
+    <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-10">
+      <div 
+        className="text-[150px] font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-gray-400"
+        style={{
+          textShadow: "0 0 60px rgba(255,100,0,0.8), 0 0 120px rgba(255,50,0,0.4)",
+          animation: "pulse 0.5s ease-in-out"
+        }}
+      >
         {count === 0 ? "GO!" : count}
       </div>
     </div>
   )
 }
 
-// HUD Component
-function HUD({ gameData }: { gameData: GameData }) {
-  const speedAngle = (gameData.speed / 300) * 270 - 135
-
+// Realistic speedometer HUD
+function SpeedometerHUD({ speed, nitro }: { speed: number; nitro: number }) {
+  const speedAngle = (speed / 320) * 240 - 120
+  
   return (
-    <div className="absolute bottom-0 left-0 right-0 p-4 pointer-events-none">
-      <div className="bg-black/70 backdrop-blur-sm rounded-xl p-4 mx-auto max-w-4xl border border-cyan-500/30">
-        <div className="flex items-center justify-between gap-8">
-          {/* Speedometer */}
-          <div className="relative w-32 h-32">
-            <svg viewBox="0 0 100 100" className="w-full h-full">
-              {/* Speedometer background arc */}
-              <circle cx="50" cy="50" r="45" fill="none" stroke="#333" strokeWidth="8" strokeDasharray="212 71" transform="rotate(135 50 50)" />
-              {/* Speed indicator arc */}
-              <circle
-                cx="50"
-                cy="50"
-                r="45"
-                fill="none"
-                stroke="url(#speedGradient)"
-                strokeWidth="8"
-                strokeDasharray={`${(gameData.speed / 300) * 212} 283`}
-                transform="rotate(135 50 50)"
-                className="transition-all duration-100"
-              />
-              <defs>
-                <linearGradient id="speedGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#00ff88" />
-                  <stop offset="50%" stopColor="#ffff00" />
-                  <stop offset="100%" stopColor="#ff3300" />
-                </linearGradient>
-              </defs>
-              {/* Needle */}
-              <line
-                x1="50"
-                y1="50"
-                x2={50 + 30 * Math.cos((speedAngle * Math.PI) / 180)}
-                y2={50 + 30 * Math.sin((speedAngle * Math.PI) / 180)}
-                stroke="#ff3300"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-              <circle cx="50" cy="50" r="4" fill="#ff3300" />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-2xl font-bold text-white">{Math.floor(gameData.speed)}</span>
-              <span className="text-xs text-cyan-400">KM/H</span>
-            </div>
-          </div>
+    <div className="absolute bottom-6 right-6 w-44 h-44">
+      {/* Speedometer dial */}
+      <svg viewBox="0 0 200 200" className="w-full h-full drop-shadow-2xl">
+        {/* Outer ring */}
+        <circle cx="100" cy="100" r="95" fill="rgba(0,0,0,0.85)" stroke="#333" strokeWidth="3" />
+        
+        {/* Speed arc background */}
+        <circle 
+          cx="100" 
+          cy="100" 
+          r="75" 
+          fill="none" 
+          stroke="#222" 
+          strokeWidth="12" 
+          strokeDasharray="314 157"
+          transform="rotate(150 100 100)"
+        />
+        
+        {/* Speed arc colored */}
+        <circle 
+          cx="100" 
+          cy="100" 
+          r="75" 
+          fill="none" 
+          stroke="url(#speedGrad)" 
+          strokeWidth="12" 
+          strokeDasharray={`${(speed / 320) * 314} 471`}
+          transform="rotate(150 100 100)"
+          strokeLinecap="round"
+        />
+        
+        <defs>
+          <linearGradient id="speedGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#22c55e" />
+            <stop offset="40%" stopColor="#eab308" />
+            <stop offset="70%" stopColor="#f97316" />
+            <stop offset="100%" stopColor="#ef4444" />
+          </linearGradient>
+        </defs>
+        
+        {/* Tick marks */}
+        {[0, 40, 80, 120, 160, 200, 240, 280, 320].map((tick, i) => {
+          const angle = ((tick / 320) * 240 - 120) * (Math.PI / 180)
+          const x1 = 100 + 62 * Math.cos(angle)
+          const y1 = 100 + 62 * Math.sin(angle)
+          const x2 = 100 + 72 * Math.cos(angle)
+          const y2 = 100 + 72 * Math.sin(angle)
+          return (
+            <g key={i}>
+              <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#666" strokeWidth="2" />
+              <text 
+                x={100 + 52 * Math.cos(angle)} 
+                y={100 + 52 * Math.sin(angle)} 
+                fill="#888" 
+                fontSize="10" 
+                textAnchor="middle" 
+                dominantBaseline="middle"
+              >
+                {tick}
+              </text>
+            </g>
+          )
+        })}
+        
+        {/* Needle */}
+        <line
+          x1="100"
+          y1="100"
+          x2={100 + 55 * Math.cos(speedAngle * Math.PI / 180)}
+          y2={100 + 55 * Math.sin(speedAngle * Math.PI / 180)}
+          stroke="#ff3333"
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
+        <circle cx="100" cy="100" r="8" fill="#ff3333" />
+        <circle cx="100" cy="100" r="4" fill="#111" />
+        
+        {/* Speed text */}
+        <text x="100" y="140" fill="white" fontSize="28" fontWeight="bold" textAnchor="middle">
+          {Math.floor(speed)}
+        </text>
+        <text x="100" y="158" fill="#0ea5e9" fontSize="12" textAnchor="middle">
+          KM/H
+        </text>
+      </svg>
+    </div>
+  )
+}
 
-          {/* Stats */}
-          <div className="flex-1 grid grid-cols-3 gap-4">
-            <div className="text-center">
-              <div className="text-xs text-cyan-400 uppercase tracking-wider">Score</div>
-              <div className="text-2xl font-bold text-white tabular-nums">{gameData.score.toLocaleString()}</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xs text-cyan-400 uppercase tracking-wider">Distance</div>
-              <div className="text-2xl font-bold text-white tabular-nums">{gameData.distance.toFixed(1)} km</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xs text-cyan-400 uppercase tracking-wider">Time</div>
-              <div className="text-2xl font-bold text-white tabular-nums">
-                {Math.floor(gameData.time / 60)}:{(Math.floor(gameData.time) % 60).toString().padStart(2, "0")}
-              </div>
-            </div>
+// Stats HUD
+function StatsHUD({ gameData }: { gameData: GameData }) {
+  return (
+    <div className="absolute top-4 left-4 bg-black/70 backdrop-blur-md rounded-xl p-4 border border-white/10">
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-sm font-bold">
+            S
           </div>
-
-          {/* Nitro bar */}
-          <div className="w-24">
-            <div className="text-xs text-cyan-400 uppercase tracking-wider mb-1 text-center">Nitro</div>
-            <div className="h-20 bg-gray-800 rounded-full overflow-hidden relative">
-              <div
-                className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-orange-600 to-yellow-400 transition-all duration-100"
-                style={{ height: `${gameData.nitro}%` }}
-              />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-xs font-bold text-white drop-shadow-lg">{Math.floor(gameData.nitro)}%</span>
-              </div>
+          <div>
+            <div className="text-xs text-gray-400 uppercase">Score</div>
+            <div className="text-xl font-bold text-white tabular-nums">{gameData.score.toLocaleString()}</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-sm font-bold">
+            D
+          </div>
+          <div>
+            <div className="text-xs text-gray-400 uppercase">Distance</div>
+            <div className="text-xl font-bold text-white tabular-nums">{gameData.distance.toFixed(1)} km</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center text-sm font-bold">
+            T
+          </div>
+          <div>
+            <div className="text-xs text-gray-400 uppercase">Time</div>
+            <div className="text-xl font-bold text-white tabular-nums">
+              {Math.floor(gameData.time / 60)}:{(Math.floor(gameData.time) % 60).toString().padStart(2, "0")}
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
 
-        {/* Controls hint */}
-        <div className="mt-3 text-center text-xs text-gray-400">
-          Arrow Keys / WASD to steer | SPACE / SHIFT for Nitro Boost
+// Nitro bar
+function NitroBar({ nitro }: { nitro: number }) {
+  return (
+    <div className="absolute bottom-6 left-6 w-16 h-40 bg-black/70 backdrop-blur-md rounded-2xl p-2 border border-white/10">
+      <div className="relative w-full h-full bg-gray-800 rounded-xl overflow-hidden">
+        <div 
+          className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-orange-600 via-yellow-500 to-cyan-400 transition-all duration-150"
+          style={{ height: `${nitro}%` }}
+        />
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-xs font-bold text-white drop-shadow-lg">N2O</span>
+          <span className="text-lg font-bold text-white drop-shadow-lg">{Math.floor(nitro)}%</span>
         </div>
       </div>
     </div>
@@ -625,28 +807,29 @@ function HUD({ gameData }: { gameData: GameData }) {
 // Minimap
 function Minimap({ playerX, trafficCars, roadOffset }: { playerX: number; trafficCars: TrafficCar[]; roadOffset: number }) {
   return (
-    <div className="absolute top-4 right-4 w-24 h-40 bg-black/70 backdrop-blur-sm rounded-lg border border-cyan-500/30 overflow-hidden">
-      <div className="absolute inset-2 bg-gray-800 rounded">
+    <div className="absolute top-4 right-4 w-28 h-44 bg-black/70 backdrop-blur-md rounded-xl border border-white/10 overflow-hidden p-2">
+      <div className="relative w-full h-full bg-gray-900 rounded-lg">
         {/* Road */}
-        <div className="absolute left-1/2 top-0 bottom-0 w-8 -translate-x-1/2 bg-gray-600" />
-        {/* Lane markings */}
-        <div className="absolute left-1/2 top-0 bottom-0 w-px -translate-x-1/2 bg-yellow-500/50" />
+        <div className="absolute left-1/2 top-0 bottom-0 w-10 -translate-x-1/2 bg-gray-700" />
+        {/* Lane dividers */}
+        <div className="absolute left-1/2 top-0 bottom-0 w-px -translate-x-1/2 bg-yellow-500/70" />
         {/* Player */}
         <div
-          className="absolute w-2 h-3 bg-red-500 rounded-sm bottom-4 transition-all duration-100"
-          style={{ left: `calc(50% + ${playerX * 1.5}px - 4px)` }}
+          className="absolute w-3 h-4 bg-red-500 rounded-sm bottom-6 border border-white/50"
+          style={{ left: `calc(50% + ${playerX * 2}px - 6px)` }}
         />
         {/* Traffic */}
-        {trafficCars.slice(0, 10).map((car) => {
+        {trafficCars.slice(0, 8).map((car) => {
           const relZ = car.position.z - roadOffset
-          if (relZ < 0 || relZ > 150) return null
+          if (relZ < 0 || relZ > 180) return null
           return (
             <div
               key={car.id}
-              className="absolute w-2 h-2 bg-blue-400 rounded-sm"
+              className="absolute w-2 h-3 rounded-sm"
               style={{
-                left: `calc(50% + ${car.position.x * 1.5}px - 4px)`,
-                bottom: `${(relZ / 150) * 80 + 20}%`,
+                backgroundColor: car.color,
+                left: `calc(50% + ${car.position.x * 2}px - 4px)`,
+                bottom: `${(relZ / 180) * 75 + 15}%`,
               }}
             />
           )
@@ -659,30 +842,45 @@ function Minimap({ playerX, trafficCars, roadOffset }: { playerX: number; traffi
 // Menu screen
 function MenuScreen({ onStart, bestScore }: { onStart: () => void; bestScore: number }) {
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-gray-900 via-gray-800 to-black">
+    <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-slate-900 via-slate-800 to-black">
       <div className="text-center">
-        <h1 className="text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 mb-2 drop-shadow-[0_0_30px_rgba(255,100,0,0.5)]">
+        <h1 
+          className="text-8xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-orange-500 to-yellow-500 mb-4"
+          style={{ textShadow: "0 0 80px rgba(255,100,0,0.5)" }}
+        >
           TURBO RACER
         </h1>
-        <p className="text-xl text-cyan-400 mb-8 tracking-widest">3D EDITION</p>
+        <p className="text-2xl text-cyan-400 mb-10 tracking-[0.3em] font-light">3D HIGHWAY EDITION</p>
 
         {bestScore > 0 && (
-          <div className="mb-8 text-yellow-400">
-            <span className="text-sm uppercase tracking-wider">Best Score: </span>
-            <span className="text-2xl font-bold">{bestScore.toLocaleString()}</span>
+          <div className="mb-10 bg-black/40 backdrop-blur-sm rounded-xl px-8 py-4 inline-block border border-yellow-500/30">
+            <span className="text-sm uppercase tracking-wider text-gray-400">Best Score: </span>
+            <span className="text-3xl font-bold text-yellow-400">{bestScore.toLocaleString()}</span>
           </div>
         )}
 
-        <button
-          onClick={onStart}
-          className="px-12 py-4 bg-gradient-to-r from-red-600 to-orange-500 text-white text-2xl font-bold rounded-lg hover:from-red-500 hover:to-orange-400 transition-all duration-300 shadow-[0_0_30px_rgba(255,100,0,0.5)] hover:shadow-[0_0_50px_rgba(255,100,0,0.7)] hover:scale-105"
-        >
-          PLAY
-        </button>
+        <div>
+          <button
+            onClick={onStart}
+            className="px-16 py-5 bg-gradient-to-r from-red-600 to-orange-500 text-white text-3xl font-black rounded-2xl hover:from-red-500 hover:to-orange-400 transition-all duration-300 shadow-[0_0_50px_rgba(255,100,0,0.6)] hover:shadow-[0_0_80px_rgba(255,100,0,0.8)] hover:scale-105 active:scale-95"
+          >
+            PLAY
+          </button>
+        </div>
 
-        <div className="mt-12 text-gray-400 text-sm">
-          <p className="mb-2">Use Arrow Keys or WASD to steer</p>
-          <p>SPACE or SHIFT for Nitro Boost</p>
+        <div className="mt-14 text-gray-400 space-y-2">
+          <p className="flex items-center justify-center gap-2">
+            <kbd className="px-2 py-1 bg-gray-800 rounded text-sm">Arrow Keys</kbd>
+            <span>or</span>
+            <kbd className="px-2 py-1 bg-gray-800 rounded text-sm">WASD</kbd>
+            <span>to steer</span>
+          </p>
+          <p className="flex items-center justify-center gap-2">
+            <kbd className="px-2 py-1 bg-gray-800 rounded text-sm">SPACE</kbd>
+            <span>or</span>
+            <kbd className="px-2 py-1 bg-gray-800 rounded text-sm">SHIFT</kbd>
+            <span>for Nitro Boost</span>
+          </p>
         </div>
       </div>
     </div>
@@ -692,30 +890,35 @@ function MenuScreen({ onStart, bestScore }: { onStart: () => void; bestScore: nu
 // Game over screen
 function GameOverScreen({ gameData, onRestart }: { gameData: GameData; onRestart: () => void }) {
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90">
-      <h2 className="text-5xl font-black text-red-500 mb-8 drop-shadow-[0_0_20px_rgba(255,0,0,0.5)]">GAME OVER</h2>
+    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm">
+      <h2 
+        className="text-6xl font-black text-red-500 mb-10"
+        style={{ textShadow: "0 0 40px rgba(255,0,0,0.6)" }}
+      >
+        GAME OVER
+      </h2>
 
-      <div className="bg-gray-900/80 backdrop-blur-sm rounded-xl p-8 mb-8 border border-cyan-500/30">
-        <div className="grid grid-cols-2 gap-6 text-center">
+      <div className="bg-slate-900/90 backdrop-blur-md rounded-2xl p-8 mb-10 border border-cyan-500/30 shadow-2xl">
+        <div className="grid grid-cols-2 gap-8 text-center">
           <div>
-            <div className="text-xs text-cyan-400 uppercase tracking-wider">Final Score</div>
-            <div className="text-3xl font-bold text-white">{gameData.score.toLocaleString()}</div>
+            <div className="text-xs text-cyan-400 uppercase tracking-wider mb-1">Final Score</div>
+            <div className="text-4xl font-black text-white">{gameData.score.toLocaleString()}</div>
           </div>
           <div>
-            <div className="text-xs text-cyan-400 uppercase tracking-wider">Best Score</div>
-            <div className="text-3xl font-bold text-yellow-400">{gameData.bestScore.toLocaleString()}</div>
+            <div className="text-xs text-cyan-400 uppercase tracking-wider mb-1">Best Score</div>
+            <div className="text-4xl font-black text-yellow-400">{gameData.bestScore.toLocaleString()}</div>
           </div>
           <div>
-            <div className="text-xs text-cyan-400 uppercase tracking-wider">Max Speed</div>
-            <div className="text-3xl font-bold text-white">{Math.floor(gameData.speed)} km/h</div>
+            <div className="text-xs text-cyan-400 uppercase tracking-wider mb-1">Top Speed</div>
+            <div className="text-4xl font-black text-white">{Math.floor(gameData.speed)}<span className="text-lg ml-1">km/h</span></div>
           </div>
           <div>
-            <div className="text-xs text-cyan-400 uppercase tracking-wider">Distance</div>
-            <div className="text-3xl font-bold text-white">{gameData.distance.toFixed(1)} km</div>
+            <div className="text-xs text-cyan-400 uppercase tracking-wider mb-1">Distance</div>
+            <div className="text-4xl font-black text-white">{gameData.distance.toFixed(1)}<span className="text-lg ml-1">km</span></div>
           </div>
           <div className="col-span-2">
-            <div className="text-xs text-cyan-400 uppercase tracking-wider">Time Survived</div>
-            <div className="text-3xl font-bold text-white">
+            <div className="text-xs text-cyan-400 uppercase tracking-wider mb-1">Time</div>
+            <div className="text-4xl font-black text-white">
               {Math.floor(gameData.time / 60)}:{(Math.floor(gameData.time) % 60).toString().padStart(2, "0")}
             </div>
           </div>
@@ -724,7 +927,7 @@ function GameOverScreen({ gameData, onRestart }: { gameData: GameData; onRestart
 
       <button
         onClick={onRestart}
-        className="px-10 py-3 bg-gradient-to-r from-green-600 to-emerald-500 text-white text-xl font-bold rounded-lg hover:from-green-500 hover:to-emerald-400 transition-all duration-300 shadow-[0_0_20px_rgba(0,255,100,0.4)] hover:shadow-[0_0_40px_rgba(0,255,100,0.6)] hover:scale-105"
+        className="px-12 py-4 bg-gradient-to-r from-green-600 to-emerald-500 text-white text-2xl font-bold rounded-xl hover:from-green-500 hover:to-emerald-400 transition-all duration-300 shadow-[0_0_30px_rgba(0,255,100,0.5)] hover:shadow-[0_0_50px_rgba(0,255,100,0.7)] hover:scale-105 active:scale-95"
       >
         PLAY AGAIN
       </button>
@@ -739,9 +942,10 @@ export default function RacingGame() {
   const [playerX, setPlayerX] = useState(0)
   const [trafficCars, setTrafficCars] = useState<TrafficCar[]>([])
   const [shake, setShake] = useState(0)
+  const [nitroActive, setNitroActive] = useState(false)
   const [gameData, setGameData] = useState<GameData>({
     score: 0,
-    speed: 60,
+    speed: 80,
     distance: 0,
     time: 0,
     bestScore: 0,
@@ -750,7 +954,7 @@ export default function RacingGame() {
 
   const keysRef = useRef<Set<string>>(new Set())
 
-  // Load best score from localStorage
+  // Load best score
   useEffect(() => {
     const saved = localStorage.getItem("racingBestScore")
     if (saved) {
@@ -797,9 +1001,10 @@ export default function RacingGame() {
     setPlayerX(0)
     setTrafficCars([])
     setShake(0)
+    setNitroActive(false)
     setGameData((prev) => ({
       score: 0,
-      speed: 60,
+      speed: 80,
       distance: 0,
       time: 0,
       bestScore: prev.bestScore,
@@ -809,8 +1014,8 @@ export default function RacingGame() {
   }, [startGame])
 
   return (
-    <div className="w-full h-screen bg-black relative overflow-hidden">
-      <Canvas shadows camera={{ position: [0, 5, -10], fov: 75 }}>
+    <div className="w-full h-screen bg-black relative overflow-hidden select-none">
+      <Canvas shadows camera={{ position: [0, 5, -12], fov: 70 }}>
         {gameState === "playing" ? (
           <GameScene
             gameData={gameData}
@@ -823,12 +1028,14 @@ export default function RacingGame() {
             keys={keysRef}
             shake={shake}
             setShake={setShake}
+            nitroActive={nitroActive}
+            setNitroActive={setNitroActive}
           />
         ) : (
           <>
             <ambientLight intensity={0.5} />
             <directionalLight position={[50, 50, 25]} intensity={1} />
-            <CustomSky />
+            <Sky sunPosition={[100, 50, 100]} />
           </>
         )}
       </Canvas>
@@ -839,8 +1046,13 @@ export default function RacingGame() {
 
       {gameState === "playing" && (
         <>
-          <HUD gameData={gameData} />
-          <Minimap playerX={playerX} trafficCars={trafficCars} roadOffset={gameData.distance * 10} />
+          <StatsHUD gameData={gameData} />
+          <SpeedometerHUD speed={gameData.speed} nitro={gameData.nitro} />
+          <NitroBar nitro={gameData.nitro} />
+          <Minimap playerX={playerX} trafficCars={trafficCars} roadOffset={gameData.distance * 100} />
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-gray-400 text-sm bg-black/50 px-4 py-2 rounded-full">
+            Arrow Keys / WASD to steer | SPACE / SHIFT for Nitro
+          </div>
         </>
       )}
 
